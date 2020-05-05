@@ -87,9 +87,12 @@ drugStores <- select(drugStores, -dropCols)
 ```{r message=FALSE}
 top6Brands <- groceryStores %>% 
   group_by(L5) %>% 
-  summarise(dollar_sales = sum(DOLLARS)) %>% 
+  summarise(dollar_sales = sum(DOLLARS/UNITS)) %>% 
   arrange(desc(dollar_sales)) %>% 
   top_n(n=6)
+
+ms <- top6Brands %>%
+  mutate(share= dollar_sales/sum(dollar_sales))
 ```
 
 ```{r message=FALSE}
@@ -100,12 +103,12 @@ ggplot(data=top6Brands, aes(reorder(L5,-dollar_sales),dollar_sales)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
-# Test if the Dollar sales of Maxwell House is significantly different from FOLGERS in ground coffee category
+# Test if the Dollar sales of Maxwell House is significantly different from STARBUCKS in ground coffee category
 ```{r message=FALSE}
-max_folger <- groceryStores %>%
-  filter(L2=="GROUND COFFEE", L5 %in% c("MAXWELL HOUSE","FOLGERS"))
+max_star <- groceryStores %>%
+  filter(L2=="GROUND COFFEE", L5 %in% c("MAXWELL HOUSE","STARBUCKS"))
 
-t.test((max_folger$DOLLARS)~max_folger$L5)
+t.test((max_star$DOLLARS/max_star$UNITS)~max_star$L5)
 ```
 
 
@@ -114,7 +117,7 @@ t.test((max_folger$DOLLARS)~max_folger$L5)
 groceryStores %>% 
   filter(L4=="KRAFT FOODS INC.") %>%
   group_by(L5) %>% 
-  summarise(dollar_sales = sum(DOLLARS)) %>% 
+  summarise(dollar_sales = sum(DOLLARS/UNITS)) %>% 
   arrange(desc(dollar_sales)) %>%
   top_n(n=5)
 ```
@@ -124,7 +127,7 @@ groceryStores %>%
 groceryStores %>% 
   filter(L4=="KRAFT FOODS INC.", L2=="GROUND COFFEE") %>%
   group_by(L5) %>% 
-  summarise(dollar_sales = sum(DOLLARS)) %>% 
+  summarise(dollar_sales = sum(DOLLARS/UNITS)) %>% 
   arrange(desc(dollar_sales)) %>%
   top_n(n=5)
 ```
@@ -134,16 +137,16 @@ groceryStores %>%
 groceryStores %>% 
   filter(L4=="KRAFT FOODS INC.", L2=="GROUND COFFEE", L5=="MAXWELL HOUSE") %>%
   group_by(Market_Name) %>% 
-  summarise(dollar_sales = sum(DOLLARS)) %>% 
+  summarise(dollar_sales = sum(DOLLARS/UNITS)) %>% 
   arrange(desc(dollar_sales)) %>%
-  top_n(n=10)
+  top_n(n=5)
 ```
 
 ```{r message=FALSE}
 groceryStores %>% 
   filter(L4=="KRAFT FOODS INC.", L2=="GROUND COFFEE", L5=="MAXWELL HOUSE") %>%
-  group_by(Market_Name, MskdName) %>% 
-  summarise(dollar_sales = sum(DOLLARS)) %>% 
+  group_by(MskdName) %>% 
+  summarise(dollar_sales = sum(DOLLARS/UNITS)) %>% 
   arrange(desc(dollar_sales), .by_group=TRUE) %>%
   top_n(5)
 ```
@@ -374,7 +377,7 @@ panel <- pdata.frame(panelDemo, index = c("PANID","WEEK"), drop.index = TRUE)
 
 ```{r message=FALSE}
 library(forecast)
-y <- ts(panel$DOLLARS,start = c(2001,6), end = c(2011,7), frequency = 12)
+y <- ts(panel$DOLLARS/panel$UNITS,start = c(2001,6), end = c(2011,7), frequency = 12)
 autoplot(y)
 ```
 
