@@ -141,10 +141,46 @@ groceryStores %>%
   arrange(desc(dollar_sales)) %>%
   top_n(n=5)
 ```
+```{r message=FALSE}
+groceryStores %>% 
+  filter(L4=="KRAFT FOODS INC.", L2=="GROUND COFFEE", L5=="STARBUCKS") %>%
+  group_by(Market_Name) %>% 
+  summarise(dollar_sales = sum(DOLLARS/UNITS)) %>% 
+  arrange(desc(dollar_sales)) %>%
+  top_n(n=5)
+```
+```{r message=FALSE}
+mxStores <- groceryStores %>% 
+  filter(L4=="KRAFT FOODS INC.", L2=="GROUND COFFEE", L5=="MAXWELL HOUSE") %>%
+  group_by(Market_Name) %>% 
+  summarise(dollar_sales = sum(DOLLARS/UNITS)) %>% 
+  arrange(desc(dollar_sales))
+
+stbStores <- groceryStores %>% 
+  filter(L4=="KRAFT FOODS INC.", L2=="GROUND COFFEE", L5=="STARBUCKS") %>%
+  group_by(Market_Name) %>% 
+  summarise(dollar_sales = sum(DOLLARS/UNITS)) %>% 
+  arrange(desc(dollar_sales))
+```
+
+```{r message=FALSE}
+mx <- mxStores %>% arrange(Market_Name)
+stb <- stbStores %>% arrange(Market_Name)
+regions <- dplyr::inner_join(mx,stb,by="Market_Name")
+regions[regions$dollar_sales.x<regions$dollar_sales.y,]
+```
 
 ```{r message=FALSE}
 groceryStores %>% 
   filter(L4=="KRAFT FOODS INC.", L2=="GROUND COFFEE", L5=="MAXWELL HOUSE") %>%
+  group_by(MskdName) %>% 
+  summarise(dollar_sales = sum(DOLLARS/UNITS)) %>% 
+  arrange(desc(dollar_sales), .by_group=TRUE) %>%
+  top_n(5)
+```
+```{r message=FALSE}
+groceryStores %>% 
+  filter(L4=="KRAFT FOODS INC.", L2=="GROUND COFFEE", L5=="STARBUCKS") %>%
   group_by(MskdName) %>% 
   summarise(dollar_sales = sum(DOLLARS/UNITS)) %>% 
   arrange(desc(dollar_sales), .by_group=TRUE) %>%
@@ -409,4 +445,22 @@ ggseasonplot(Dy) + ggtitle("Time plot: Dollar sales of Coffee per day")
 
 
 ```{r message=FALSE}
+```
+
+```{r message=FALSE}
+fcast <- forecast(fit_ets)
+autoplot(fcast)
+print(summary(fcast))
+```
+
+```{r message=FALSE}
+y <- cbind(panel$dollarSales)
+X <- cbind(panel$WEEK,panel$UNITS)
+
+```
+
+
+```{r message=FALSE}
+randomeffects <- plm(as.numeric(y) ~ X, data = panel, model = 'random')
+summary(randomeffects)
 ```
