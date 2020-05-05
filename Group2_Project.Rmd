@@ -372,6 +372,37 @@ panelDemo <- dplyr::left_join(panelData, demography, by=c("PANID"="Panelist.ID")
 panel <- pdata.frame(panelDemo, index = c("PANID","WEEK"), drop.index = TRUE)
 ```
 
+```{r message=FALSE}
+library(forecast)
+y <- ts(panel$DOLLARS,start = c(2001,6), end = c(2011,7), frequency = 12)
+autoplot(y)
+```
+
+```{r message=FALSE}
+fit <- snaive(y)
+print(summary(fit))
+checkresiduals(fit)
+```
+
+
+```{r message=FALSE}
+fit_ets <- ets(y)
+print(summary(fit_ets))
+```
+
+
+```{r message=FALSE}
+checkresiduals(fit_ets)
+```
+
+```{r message=FALSE}
+Dy <- diff(y)
+autoplot(Dy)
+```
+
+```{r message=FALSE}
+ggseasonplot(Dy) + ggtitle("Time plot: Dollar sales of Coffee per day")
+```
 
 
 ```{r message=FALSE}
