@@ -279,7 +279,7 @@ ggplot(data=flavor, aes(reorder(`FLAVOR/SCENT`,-DollarSales),DollarSales)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
-# Sales distributio by Package
+# Sales distribution by Package
 ```{r message=FALSE}
 packaging <- grocMaxwell %>%
   group_by(PACKAGE) %>%
@@ -328,7 +328,7 @@ summary(pkgTest)
 ```
 We can statistically conclude that dollar sales of Canned coffee is significantly higher than other packaging 
 
-# Test if dollar sales of All Purpose brewing methos is significantly different from other brewing methods using ANOVA
+# Test if dollar sales of All Purpose brewing method is significantly different from other brewing methods using ANOVA
 ```{r message=FALSE}
 bwTest <- aov(anovaData$DOLLARS/anovaData$UNITS ~ anovaData$brew)
 summary(bwTest)
@@ -340,8 +340,8 @@ We can statistically conclude that dollar sales of all purpose coffee is signifi
 ```{r message=FALSE}
 regData <- wtGrocMaxwell %>% 
   group_by(WEEK) %>%
-  summarise(sales = sum(UNITS),
-            ppoz = mean((DOLLARS)/(UNITS*VOL_EQ*16)),
+  summarise(sales = mean(DOLLARS/UNITS),
+            ppoz = weighted.mean((DOLLARS)/(UNITS*VOL_EQ*16), wt),
             display = mean(D),
             featured = mean(feature),
             pr_reduced = mean(reduced_price))
