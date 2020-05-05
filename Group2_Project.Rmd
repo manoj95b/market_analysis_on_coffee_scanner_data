@@ -6,6 +6,13 @@ output: html_notebook
 ```{r message=FALSE}
 library(tidyverse)
 ```
+```{r message=FALSE}
+library(ggplot2)
+```
+```{r message=FALSE}
+library(plm)
+```
+
 
 # Import Files
 ```{r message=FALSE}
@@ -76,3 +83,327 @@ groceryStores <- select(groceryStores, -dropCols)
 drugStores <- select(drugStores, -dropCols)
 ```
 
+# Top 6 brands by dollar sales
+```{r message=FALSE}
+top6Brands <- groceryStores %>% 
+  group_by(L5) %>% 
+  summarise(dollar_sales = sum(DOLLARS)) %>% 
+  arrange(desc(dollar_sales)) %>% 
+  top_n(n=6)
+```
+
+```{r message=FALSE}
+ggplot(data=top6Brands, aes(reorder(L5,-dollar_sales),dollar_sales)) + 
+  geom_bar(stat = "identity", color="black") +
+  xlab("Brand") + 
+  ylab("Sales") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+# Test if the Dollar sales of Maxwell House is significantly different from FOLGERS in ground coffee category
+```{r message=FALSE}
+max_folger <- groceryStores %>%
+  filter(L2=="GROUND COFFEE", L5 %in% c("MAXWELL HOUSE","FOLGERS"))
+
+t.test((max_folger$DOLLARS)~max_folger$L5)
+```
+
+
+# Top brands by dollar sales within KRAFT FOOD INC.
+```{r message=FALSE}
+groceryStores %>% 
+  filter(L4=="KRAFT FOODS INC.") %>%
+  group_by(L5) %>% 
+  summarise(dollar_sales = sum(DOLLARS)) %>% 
+  arrange(desc(dollar_sales)) %>%
+  top_n(n=5)
+```
+
+# Top brands selling Ground Coffee by dollar sales within KRAFT FOOD INC.
+```{r message=FALSE}
+groceryStores %>% 
+  filter(L4=="KRAFT FOODS INC.", L2=="GROUND COFFEE") %>%
+  group_by(L5) %>% 
+  summarise(dollar_sales = sum(DOLLARS)) %>% 
+  arrange(desc(dollar_sales)) %>%
+  top_n(n=5)
+```
+
+# Top brands selling Ground Coffee by dollar sales within KRAFT FOOD INC. by region
+```{r message=FALSE}
+groceryStores %>% 
+  filter(L4=="KRAFT FOODS INC.", L2=="GROUND COFFEE", L5=="MAXWELL HOUSE") %>%
+  group_by(Market_Name) %>% 
+  summarise(dollar_sales = sum(DOLLARS)) %>% 
+  arrange(desc(dollar_sales)) %>%
+  top_n(n=10)
+```
+
+```{r message=FALSE}
+groceryStores %>% 
+  filter(L4=="KRAFT FOODS INC.", L2=="GROUND COFFEE", L5=="MAXWELL HOUSE") %>%
+  group_by(Market_Name, MskdName) %>% 
+  summarise(dollar_sales = sum(DOLLARS)) %>% 
+  arrange(desc(dollar_sales), .by_group=TRUE) %>%
+  top_n(5)
+```
+
+# Sale of number of units per week
+```{r message=FALSE}
+weeklySales <- groceryStores %>%
+  filter(L4=="KRAFT FOODS INC.", L2=="GROUND COFFEE", L5=="MAXWELL HOUSE") %>%
+  group_by(WEEK) %>%
+  summarise(weekly_sales = sum(UNITS))
+weeklySales
+```
+
+# Line chart of weekly sales
+```{r message=FALSE}
+ggplot(weeklySales, aes(WEEK,weekly_sales)) +
+  geom_line(stat="identity") +
+  xlab("Week") +
+  ylab("Units Sold")
+```
+
+# Weekly price per per ounce
+```{r message=FALSE}
+weeklyPpoz <- groceryStores %>%
+  filter(L4=="KRAFT FOODS INC.", L2=="GROUND COFFEE", L5=="MAXWELL HOUSE") %>%
+  group_by(WEEK) %>%
+  summarise(weekly_ppoz = mean((DOLLARS)/(UNITS*VOL_EQ*16)))
+weeklyPpoz
+```
+
+# Line chart of weekly price per ounce
+```{r message=FALSE}
+ggplot(weeklyPpoz, aes(WEEK,weekly_ppoz)) +
+  geom_line(stat="identity") +
+  xlab("Week") +
+  ylab("Avg Price/ounce")
+```
+
+# Correlation between average price per ounce and number of units sold per week
+```{r message=FALSE}
+cor(weeklySales$weekly_sales, weeklyPpoz$weekly_ppoz)
+```
+We observe that there is a strong correlation between number of units sold with price per ounce
+
+```{r message=FALSE}
+ggplot() +
+  geom_line(data = weeklySales, aes(WEEK,log(weekly_sales)),color="darkred") +
+  xlab("Week") +
+  geom_line(data = weeklyPpoz, aes(WEEK,weekly_ppoz*30), color="steelblue") +
+  scale_y_continuous(name="Units Sold", sec.axis=sec_axis(~./1,name="Avg Price/ounce")) +
+  theme(
+    axis.title.y.left=element_text(color="darkred"),
+    axis.text.y.left=element_text(color="darkred"),
+    axis.title.y.right=element_text(color="steelblue"),
+    axis.text.y.right=element_text(color="steelblue")
+  )
+
+```
+
+It is evident that there is a sales increased during the week when the avg price per ounce was reduced.
+
+# Create a subset of data for Maxwell House ground coffee
+```{r message= FALSE}
+grocMaxwell <- groceryStores %>%
+  filter(L2=="GROUND COFFEE", L5=="MAXWELL HOUSE")
+```
+```{r message=FALSE}
+drugMaxwell <- drugStores %>%
+  filter(L2=="GROUND COFFEE", L5=="MAXWELL HOUSE")
+```
+
+
+# Create a new column with weight of annual share of display variable(D) for each group of UPC, convert F and PR to dummy variables
+```{r message=FALSE}
+wtGrocMaxwell <- grocMaxwell %>%
+  group_by(UPC) %>%
+  mutate(wt = sum(D)/sum(.$D),
+         feature = ifelse(F=="NONE",0,1),
+         disp = ifelse(D==0,0,1))
+```
+
+```{r message=FALSE}
+featuredSales <- wtGrocMaxwell %>% 
+  group_by(feature) %>%
+  summarise(UnitsSold = sum(UNITS))
+
+prReducedSales <- wtGrocMaxwell %>% 
+  group_by(PR) %>%
+  summarise(UnitsSold = sum(UNITS))
+
+dispSales <- wtGrocMaxwell %>%
+  group_by(disp) %>%
+  summarise(UnitsSold = sum(UNITS))
+```
+
+```{r message=FALSE}
+ggplot(data=featuredSales, aes(reorder(feature,-UnitsSold),UnitsSold)) + 
+  geom_bar(stat = "identity", color="black") +
+  xlab("Feature") + 
+  ylab("Units Sold")
+```
+The number of units sold is greater for non-featured category than featured category. 
+
+```{r message=FALSE}
+ggplot(data=prReducedSales, aes(reorder(PR,-UnitsSold),UnitsSold)) + 
+  geom_bar(stat = "identity", color="black") +
+  xlab("Reduced Price") + 
+  ylab("Units Sold")
+```
+The number of units sold is equivalent for both reduced price and regular price category
+
+```{r message=FALSE}
+ggplot(data=dispSales, aes(reorder(disp,-UnitsSold),UnitsSold)) + 
+  geom_bar(stat = "identity", color="black") +
+  xlab("Display") + 
+  ylab("Units Sold")
+```
+The number of units sold is greater for non-display category than display category.
+
+# Sales distribution by Flavor/Scent
+```{r message=FALSE}
+flavor <- grocMaxwell %>%
+  group_by(`FLAVOR/SCENT`) %>%
+  summarize(DollarSales = sum(DOLLARS/UNITS))
+
+ggplot(data=flavor, aes(reorder(`FLAVOR/SCENT`,-DollarSales),DollarSales)) + 
+  geom_bar(stat = "identity", color="black") +
+  xlab("Flavor") + 
+  ylab("Dollar sales") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+# Sales distributio by Package
+```{r message=FALSE}
+packaging <- grocMaxwell %>%
+  group_by(PACKAGE) %>%
+  summarize(DollarSales = sum(DOLLARS/UNITS))
+
+ggplot(data=packaging, aes(reorder(PACKAGE,-DollarSales),DollarSales)) + 
+  geom_bar(stat = "identity", color="black") +
+  xlab("Packaging Type") + 
+  ylab("Dollar sales") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+# Sales distribution by Brewing Method
+```{r message=FALSE}
+bw <- grocMaxwell %>%
+  group_by(`BREWING METHOD`) %>%
+  summarize(DollarSales = sum(DOLLARS/UNITS))
+
+ggplot(data=bw, aes(reorder(`BREWING METHOD`,-DollarSales),DollarSales)) + 
+  geom_bar(stat = "identity", color="black") +
+  xlab("Brewing Method") + 
+  ylab("Dollar sales") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+# ANOVA on Flavor, Package and Brewing Method
+
+```{r message=FALSE}
+anovaData <- grocMaxwell %>%
+  mutate(flavor = ifelse(`FLAVOR/SCENT`=="REGULAR",1,0),
+            package = ifelse(PACKAGE=="CAN",1,0),
+            brew = ifelse(`BREWING METHOD`=="ALL PURPOSE",1,0))
+```
+
+# Test if dollar sales of Regular flavor is significantly different from other flavors using ANOVA
+```{r message=FALSE}
+flvTest <- aov(anovaData$DOLLARS/anovaData$UNITS ~ anovaData$flavor)
+summary(flvTest)
+```
+We can statistically conclude that dollar sales of Regular flavor coffee is significantly higher than other flavours. 
+
+# Test if dollar sales of Canned Packaging is significantly different from other packaging using ANOVA
+```{r message=FALSE}
+pkgTest <- aov(anovaData$DOLLARS/anovaData$UNITS ~ anovaData$package)
+summary(pkgTest)
+```
+We can statistically conclude that dollar sales of Canned coffee is significantly higher than other packaging 
+
+# Test if dollar sales of All Purpose brewing methos is significantly different from other brewing methods using ANOVA
+```{r message=FALSE}
+bwTest <- aov(anovaData$DOLLARS/anovaData$UNITS ~ anovaData$brew)
+summary(bwTest)
+```
+We can statistically conclude that dollar sales of all purpose coffee is significantly higher than other brewing methods. 
+
+# Dataset with weekly averages to perform regression
+
+```{r message=FALSE}
+regData <- wtGrocMaxwell %>% 
+  group_by(WEEK) %>%
+  summarise(sales = sum(UNITS),
+            ppoz = mean((DOLLARS)/(UNITS*VOL_EQ*16)),
+            display = mean(D),
+            featured = mean(feature),
+            pr_reduced = mean(reduced_price))
+```
+
+# Linear Regression against weekly sales
+```{r message=FALSE}
+mod <- glm(sales~ppoz+display+featured+pr_reduced, data=regData)
+summary(mod)
+```
+
+
+
+# PANEL DATA ANALYSIS
+
+```{r message=FALSE}
+panelData <- rbind(grocPanel, massPanel, drugPanel)
+panelData <- panelData[!duplicated(panelData[c(1,2)]),]
+
+panelData <- panelData %>%
+  mutate(dollarSales=DOLLARS/UNITS)
+```
+
+
+# Merge panel data with demographic data
+```{r message=FALSE}
+panelDemo <- dplyr::left_join(panelData, demography, by=c("PANID"="Panelist.ID"))
+```
+
+```{r message=FALSE}
+panel <- pdata.frame(panelDemo, index = c("PANID","WEEK"), drop.index = TRUE)
+```
+
+```{r message=FALSE}
+library(forecast)
+y <- ts(panel$DOLLARS,start = c(2001,6), end = c(2011,7), frequency = 12)
+autoplot(y)
+```
+
+```{r message=FALSE}
+fit <- snaive(y)
+print(summary(fit))
+checkresiduals(fit)
+```
+
+
+```{r message=FALSE}
+fit_ets <- ets(y)
+print(summary(fit_ets))
+```
+
+
+```{r message=FALSE}
+checkresiduals(fit_ets)
+```
+
+```{r message=FALSE}
+Dy <- diff(y)
+autoplot(Dy)
+```
+
+```{r message=FALSE}
+ggseasonplot(Dy) + ggtitle("Time plot: Dollar sales of Coffee per day")
+```
+
+
+```{r message=FALSE}
+```
