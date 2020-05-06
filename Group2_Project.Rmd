@@ -410,7 +410,7 @@ panelData <- panelData %>%
 panelDemo <- dplyr::left_join(panelData, demography, by=c("PANID"="Panelist.ID"))
 ```
 
-# RFM
+#======== RFM ===============#
 ```{r message=FALSE}
 sortPanel <- panelDemo %>%
   arrange(PANID, desc(WEEK)) %>%
@@ -474,7 +474,9 @@ out <- cbind(normRfm, clusterNum = myCluster$cluster)
 clusters <- cbind(rf$PANID,out)
 ```
 
-#####
+#======== End of RFM Analysis =============#
+
+# PANEL REGRESSION
 ```{r message=FALSE}
 panel <- pdata.frame(panelDemo, index = c("PANID","WEEK"), drop.index = TRUE)
 ```
@@ -511,9 +513,6 @@ autoplot(Dy)
 ggseasonplot(Dy) + ggtitle("Time plot: Dollar sales of Coffee per day")
 ```
 
-
-```{r message=FALSE}
-```
 
 ```{r message=FALSE}
 fcast <- forecast(fit_ets)
