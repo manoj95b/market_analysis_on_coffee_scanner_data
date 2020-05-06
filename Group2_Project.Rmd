@@ -435,7 +435,7 @@ rfmData <- select(rfPanel, c("PANID","UNITS","DOLLARS","endDt"))
 # Prepare data for RFM
 ```{r message=FALSE}
 rf <- group_by (rfmData, PANID) %>% 
-  summarise( Monetary= sum(DOLLARS), 
+  summarise( Monetary= sum(DOLLARS/UNITS), 
              Frequency = n(),
   Recency = 1/(as.numeric(difftime(format(date("2011-07-18 UTC"), "%Y-%m-%d"), last(endDt),units = c("weeks")) )))
 ```
