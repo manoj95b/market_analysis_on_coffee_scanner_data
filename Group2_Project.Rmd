@@ -45,6 +45,9 @@ stores <- read_table('Delivery_Stores.dat')
 prodCoffee <- readxl::read_xls('prod_coffee.xls')
 ```
 ```{r message=FALSE}
+weekTranslation <- readxl::read_xls('IRI week translation.xls')
+```
+```{r message=FALSE}
 demography <- read.csv('ads demo3(1).csv')
 ```
 
@@ -407,6 +410,71 @@ panelData <- panelData %>%
 panelDemo <- dplyr::left_join(panelData, demography, by=c("PANID"="Panelist.ID"))
 ```
 
+# RFM
+```{r message=FALSE}
+sortPanel <- panelDemo %>%
+  arrange(PANID, desc(WEEK)) %>%
+  filter(WEEK>=1138, WEEK<=1663)
+```
+
+```{r message=FALSE}
+wd <- dplyr::rename(weekTranslation, "WEEK"="IRI Week...1",
+              "startDt"="Calendar week starting on",
+              "endDt"="Calendar week ending on")
+weekData <- select(wd,c("WEEK","startDt","endDt"))
+```
+
+```{r message=FALSE}
+rfPanel <- dplyr::left_join(sortPanel,weekData, by="WEEK")
+```
+
+```{r message=FALSE}
+rfmData <- select(rfPanel, c("PANID","UNITS","DOLLARS","endDt"))
+```
+
+# Prepare data for RFM
+```{r message=FALSE}
+rf <- group_by (rfmData, PANID) %>% 
+  summarise( Monetary= sum(DOLLARS), 
+             Frequency = n(),
+  Recency = 1/(as.numeric(difftime(format(date("2011-07-18 UTC"), "%Y-%m-%d"), last(endDt),units = c("weeks")) )))
+```
+
+# Normalize the data
+```{r message=FALSE}
+normalize <- function(x) {
+return (((x - min(x)) / (max(x) - min(x))) * 5)}
+
+normRfm <- as.data.frame(lapply(rf[2:4], normalize))
+```
+
+# Determine the number of clusters through Elbow curve
+```{r message=FALSE}
+wss <- (nrow(normRfm)-1)*sum(apply(normRfm,2,var))
+for (i in 2:15) wss[i] <- sum(kmeans(normRfm,centers=i)$withinss)
+plot(1:15, wss, type="b", xlab="Number of Clusters", ylab="Within groups sum of squares")
+```
+
+```{r message=FALSE}
+myCluster <- kmeans(normRfm, 5, nstart = 20)
+myCluster$cluster <- as.factor(myCluster$cluster)
+```
+
+```{r message=FALSE}
+ggplot(normRfm, aes(Recency, Monetary, color = myCluster$cluster)) + 
+  geom_point()
+```
+
+```{r message=FALSE}
+out <- cbind(normRfm, clusterNum = myCluster$cluster)
+```
+
+
+```{r message=FALSE}
+clusters <- cbind(rf$PANID,out)
+```
+
+#####
 ```{r message=FALSE}
 panel <- pdata.frame(panelDemo, index = c("PANID","WEEK"), drop.index = TRUE)
 ```
@@ -455,8 +523,9 @@ print(summary(fcast))
 
 ```{r message=FALSE}
 y <- cbind(panel$dollarSales)
-X <- cbind(panel$WEEK,panel$UNITS)
-
+X <- cbind(panel$WEEK,panel$UNITS,panel$Family.Size,panel$HH_AGE,panel$Combined.Pre.Tax.Income.of.HH,  panel$Type.of.Residential.Possession, panel$HH_EDU, panel$Age.Group.Applied.to.Male.HH,panel$Age.Group.Applied.to.Female.HH, 
+           panel$Occupation.Code.of.Female.HH, panel$Children.Group.Code,panel$Marital.Status,
+           panel$ZIPCODE)
 ```
 
 
