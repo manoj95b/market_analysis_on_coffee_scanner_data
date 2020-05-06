@@ -45,6 +45,9 @@ stores <- read_table('Delivery_Stores.dat')
 prodCoffee <- readxl::read_xls('prod_coffee.xls')
 ```
 ```{r message=FALSE}
+weekTranslation <- readxl::read_xls('IRI week translation.xls')
+```
+```{r message=FALSE}
 demography <- read.csv('ads demo3(1).csv')
 ```
 
@@ -87,9 +90,12 @@ drugStores <- select(drugStores, -dropCols)
 ```{r message=FALSE}
 top6Brands <- groceryStores %>% 
   group_by(L5) %>% 
-  summarise(dollar_sales = sum(DOLLARS)) %>% 
+  summarise(dollar_sales = sum(DOLLARS/UNITS)) %>% 
   arrange(desc(dollar_sales)) %>% 
   top_n(n=6)
+
+ms <- top6Brands %>%
+  mutate(share= dollar_sales/sum(dollar_sales))
 ```
 
 ```{r message=FALSE}
@@ -100,12 +106,12 @@ ggplot(data=top6Brands, aes(reorder(L5,-dollar_sales),dollar_sales)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
-# Test if the Dollar sales of Maxwell House is significantly different from FOLGERS in ground coffee category
+# Test if the Dollar sales of Maxwell House is significantly different from STARBUCKS in ground coffee category
 ```{r message=FALSE}
-max_folger <- groceryStores %>%
-  filter(L2=="GROUND COFFEE", L5 %in% c("MAXWELL HOUSE","FOLGERS"))
+max_star <- groceryStores %>%
+  filter(L2=="GROUND COFFEE", L5 %in% c("MAXWELL HOUSE","STARBUCKS"))
 
-t.test((max_folger$DOLLARS)~max_folger$L5)
+t.test((max_star$DOLLARS/max_star$UNITS)~max_star$L5)
 ```
 
 
@@ -114,7 +120,7 @@ t.test((max_folger$DOLLARS)~max_folger$L5)
 groceryStores %>% 
   filter(L4=="KRAFT FOODS INC.") %>%
   group_by(L5) %>% 
-  summarise(dollar_sales = sum(DOLLARS)) %>% 
+  summarise(dollar_sales = sum(DOLLARS/UNITS)) %>% 
   arrange(desc(dollar_sales)) %>%
   top_n(n=5)
 ```
@@ -124,7 +130,7 @@ groceryStores %>%
 groceryStores %>% 
   filter(L4=="KRAFT FOODS INC.", L2=="GROUND COFFEE") %>%
   group_by(L5) %>% 
-  summarise(dollar_sales = sum(DOLLARS)) %>% 
+  summarise(dollar_sales = sum(DOLLARS/UNITS)) %>% 
   arrange(desc(dollar_sales)) %>%
   top_n(n=5)
 ```
@@ -134,16 +140,52 @@ groceryStores %>%
 groceryStores %>% 
   filter(L4=="KRAFT FOODS INC.", L2=="GROUND COFFEE", L5=="MAXWELL HOUSE") %>%
   group_by(Market_Name) %>% 
-  summarise(dollar_sales = sum(DOLLARS)) %>% 
+  summarise(dollar_sales = sum(DOLLARS/UNITS)) %>% 
   arrange(desc(dollar_sales)) %>%
-  top_n(n=10)
+  top_n(n=5)
+```
+```{r message=FALSE}
+groceryStores %>% 
+  filter(L4=="KRAFT FOODS INC.", L2=="GROUND COFFEE", L5=="STARBUCKS") %>%
+  group_by(Market_Name) %>% 
+  summarise(dollar_sales = sum(DOLLARS/UNITS)) %>% 
+  arrange(desc(dollar_sales)) %>%
+  top_n(n=5)
+```
+```{r message=FALSE}
+mxStores <- groceryStores %>% 
+  filter(L4=="KRAFT FOODS INC.", L2=="GROUND COFFEE", L5=="MAXWELL HOUSE") %>%
+  group_by(Market_Name) %>% 
+  summarise(dollar_sales = sum(DOLLARS/UNITS)) %>% 
+  arrange(desc(dollar_sales))
+
+stbStores <- groceryStores %>% 
+  filter(L4=="KRAFT FOODS INC.", L2=="GROUND COFFEE", L5=="STARBUCKS") %>%
+  group_by(Market_Name) %>% 
+  summarise(dollar_sales = sum(DOLLARS/UNITS)) %>% 
+  arrange(desc(dollar_sales))
+```
+
+```{r message=FALSE}
+mx <- mxStores %>% arrange(Market_Name)
+stb <- stbStores %>% arrange(Market_Name)
+regions <- dplyr::inner_join(mx,stb,by="Market_Name")
+regions[regions$dollar_sales.x<regions$dollar_sales.y,]
 ```
 
 ```{r message=FALSE}
 groceryStores %>% 
   filter(L4=="KRAFT FOODS INC.", L2=="GROUND COFFEE", L5=="MAXWELL HOUSE") %>%
-  group_by(Market_Name, MskdName) %>% 
-  summarise(dollar_sales = sum(DOLLARS)) %>% 
+  group_by(MskdName) %>% 
+  summarise(dollar_sales = sum(DOLLARS/UNITS)) %>% 
+  arrange(desc(dollar_sales), .by_group=TRUE) %>%
+  top_n(5)
+```
+```{r message=FALSE}
+groceryStores %>% 
+  filter(L4=="KRAFT FOODS INC.", L2=="GROUND COFFEE", L5=="STARBUCKS") %>%
+  group_by(MskdName) %>% 
+  summarise(dollar_sales = sum(DOLLARS/UNITS)) %>% 
   arrange(desc(dollar_sales), .by_group=TRUE) %>%
   top_n(5)
 ```
@@ -276,7 +318,7 @@ ggplot(data=flavor, aes(reorder(`FLAVOR/SCENT`,-DollarSales),DollarSales)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
-# Sales distributio by Package
+# Sales distribution by Package
 ```{r message=FALSE}
 packaging <- grocMaxwell %>%
   group_by(PACKAGE) %>%
@@ -325,7 +367,7 @@ summary(pkgTest)
 ```
 We can statistically conclude that dollar sales of Canned coffee is significantly higher than other packaging 
 
-# Test if dollar sales of All Purpose brewing methos is significantly different from other brewing methods using ANOVA
+# Test if dollar sales of All Purpose brewing method is significantly different from other brewing methods using ANOVA
 ```{r message=FALSE}
 bwTest <- aov(anovaData$DOLLARS/anovaData$UNITS ~ anovaData$brew)
 summary(bwTest)
@@ -337,8 +379,8 @@ We can statistically conclude that dollar sales of all purpose coffee is signifi
 ```{r message=FALSE}
 regData <- wtGrocMaxwell %>% 
   group_by(WEEK) %>%
-  summarise(sales = sum(UNITS),
-            ppoz = mean((DOLLARS)/(UNITS*VOL_EQ*16)),
+  summarise(sales = mean(DOLLARS/UNITS),
+            ppoz = weighted.mean((DOLLARS)/(UNITS*VOL_EQ*16), wt),
             display = mean(D),
             featured = mean(feature),
             pr_reduced = mean(reduced_price))
@@ -368,13 +410,80 @@ panelData <- panelData %>%
 panelDemo <- dplyr::left_join(panelData, demography, by=c("PANID"="Panelist.ID"))
 ```
 
+#======== RFM ===============#
+```{r message=FALSE}
+sortPanel <- panelDemo %>%
+  arrange(PANID, desc(WEEK)) %>%
+  filter(WEEK>=1138, WEEK<=1663)
+```
+
+```{r message=FALSE}
+wd <- dplyr::rename(weekTranslation, "WEEK"="IRI Week...1",
+              "startDt"="Calendar week starting on",
+              "endDt"="Calendar week ending on")
+weekData <- select(wd,c("WEEK","startDt","endDt"))
+```
+
+```{r message=FALSE}
+rfPanel <- dplyr::left_join(sortPanel,weekData, by="WEEK")
+```
+
+```{r message=FALSE}
+rfmData <- select(rfPanel, c("PANID","UNITS","DOLLARS","endDt"))
+```
+
+# Prepare data for RFM
+```{r message=FALSE}
+rf <- group_by (rfmData, PANID) %>% 
+  summarise( Monetary= sum(DOLLARS/UNITS), 
+             Frequency = n(),
+  Recency = 1/(as.numeric(difftime(format(date("2011-07-18 UTC"), "%Y-%m-%d"), last(endDt),units = c("weeks")) )))
+```
+
+# Normalize the data
+```{r message=FALSE}
+normalize <- function(x) {
+return (((x - min(x)) / (max(x) - min(x))) * 5)}
+
+normRfm <- as.data.frame(lapply(rf[2:4], normalize))
+```
+
+# Determine the number of clusters through Elbow curve
+```{r message=FALSE}
+wss <- (nrow(normRfm)-1)*sum(apply(normRfm,2,var))
+for (i in 2:15) wss[i] <- sum(kmeans(normRfm,centers=i)$withinss)
+plot(1:15, wss, type="b", xlab="Number of Clusters", ylab="Within groups sum of squares")
+```
+
+```{r message=FALSE}
+myCluster <- kmeans(normRfm, 5, nstart = 20)
+myCluster$cluster <- as.factor(myCluster$cluster)
+```
+
+```{r message=FALSE}
+ggplot(normRfm, aes(Recency, Monetary, color = myCluster$cluster)) + 
+  geom_point()
+```
+
+```{r message=FALSE}
+out <- cbind(normRfm, clusterNum = myCluster$cluster)
+```
+
+
+```{r message=FALSE}
+clusters <- cbind(rf$PANID,out)
+```
+
+#======== End of RFM Analysis =============#
+
+# PANEL REGRESSION
 ```{r message=FALSE}
 panel <- pdata.frame(panelDemo, index = c("PANID","WEEK"), drop.index = TRUE)
 ```
 
 ```{r message=FALSE}
 library(forecast)
-y <- ts(panel$DOLLARS,start = c(2001,6), end = c(2011,7), frequency = 12)
+y <- ts(panel$DOLLARS/panel$UNITS,start = c(2001,6), end = c(2011,7), frequency = 12)
 autoplot(y)
 ```
 
@@ -406,4 +515,20 @@ ggseasonplot(Dy) + ggtitle("Time plot: Dollar sales of Coffee per day")
 
 
 ```{r message=FALSE}
+fcast <- forecast(fit_ets)
+autoplot(fcast)
+print(summary(fcast))
+```
+
+```{r message=FALSE}
+y <- cbind(panel$dollarSales)
+X <- cbind(panel$WEEK,panel$UNITS,panel$Family.Size,panel$HH_AGE,panel$Combined.Pre.Tax.Income.of.HH,  panel$Type.of.Residential.Possession, panel$HH_EDU, panel$Age.Group.Applied.to.Male.HH,panel$Age.Group.Applied.to.Female.HH, 
+           panel$Occupation.Code.of.Female.HH, panel$Children.Group.Code,panel$Marital.Status,
+           panel$ZIPCODE)
+```
+
+
+```{r message=FALSE}
+randomeffects <- plm(as.numeric(y) ~ X, data = panel, model = 'random')
+summary(randomeffects)
 ```
